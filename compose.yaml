@@ -1,0 +1,91 @@
+name: practica-moodle
+
+services:
+  database:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-moodle}
+      MARIADB_USER: ${DB_USER:-moodle}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  moodle:
+    build:
+      context: .
+      args:
+        MOODLE_BRANCH: MOODLE_405_STABLE
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html
+      MOODLE_URL: ${MOODLE_URL:-http://localhost:8080}
+      MOODLE_SITE_NAME: ${MOODLE_SITE_NAME:-Aula de Fotografia Digital}
+      MOODLE_SITE_SHORTNAME: ${MOODLE_SITE_SHORTNAME:-FotoAula}
+      MOODLE_ADMIN_USER: ${MOODLE_ADMIN_USER:-admin}
+      MOODLE_ADMIN_PASSWORD: ${MOODLE_ADMIN_PASSWORD}
+      MOODLE_ADMIN_EMAIL: ${MOODLE_ADMIN_EMAIL:-admin@example.local}
+      DB_HOST: database
+      DB_NAME: ${DB_NAME:-moodle}
+      DB_USER: ${DB_USER:-moodle}
+      DB_PASSWORD: ${DB_PASSWORD}
+      STUDENT_INITIAL_PASSWORD: ${STUDENT_INITIAL_PASSWORD}
+    volumes:
+      - moodle_data:/var/moodledata
+      - ./data:/opt/practica/data:ro
+      - ./scripts:/opt/practica/scripts:ro
+    networks:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/login/index.php >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 180s
+
+  cron:
+    build:
+      context: .
+      args:
+        MOODLE_BRANCH: MOODLE_405_STABLE
+    user: "www-data"
+    restart: unless-stopped
+    depends_on:
+      moodle:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["while true; do php /var/www/html/admin/cli/cron.php; sleep 60; done"]
+    environment:
+      MOODLE_URL: ${MOODLE_URL:-http://localhost:8080}
+      DB_HOST: database
+      DB_NAME: ${DB_NAME:-moodle}
+      DB_USER: ${DB_USER:-moodle}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - moodle_data:/var/moodledata
+    networks:
+      - backend
+
+volumes:
+  db_data:
+  moodle_data:
+
+networks:
+  frontend:
+  backend:
+    internal: true

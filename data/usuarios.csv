@@ -1,0 +1,6 @@
+username,firstname,lastname,email,role
+ana.garcia,Ana,Garcia,ana.garcia@example.local,student
+carlos.lopez,Carlos,Lopez,carlos.lopez@example.local,student
+laura.martinez,Laura,Martinez,laura.martinez@example.local,student
+profesor.demo,Profesor,Demo,profesor.demo@example.local,editingteacher
+

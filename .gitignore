@@ -1,0 +1,8 @@
+.env
+CREDENCIALES.txt
+.DS_Store
+work/
+backups/*.mbz
+backups/*.sql.gz
+backups/*.tar.gz
+!backups/.gitkeep
